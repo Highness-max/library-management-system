@@ -1,0 +1,167 @@
+// ─────────────────────────────────────────────────────────────
+// PLP Library Management System — Prisma Schema
+// Single source of truth for: Postgres tables, TS types, validation
+// ─────────────────────────────────────────────────────────────
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─────────────── ENUMS ───────────────
+
+enum Role {
+  PATRON
+  LIBRARIAN
+}
+
+enum BorrowStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RETURNED
+  OVERDUE
+}
+
+enum BookingStatus {
+  PENDING
+  CONFIRMED
+  CANCELLED
+  COMPLETED
+}
+
+// ─────────────── CORE CATALOG (Week 1) ───────────────
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  name      String
+  role      Role     @default(PATRON)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // relations (used in later weeks)
+  reviews        Review[]
+  borrowRequests BorrowRequest[]
+  bookings       Booking[]
+
+  @@index([role])
+  @@index([createdAt])
+}
+
+model Genre {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  books Book[]
+}
+
+model Book {
+  id              Int      @id @default(autoincrement())
+  title           String
+  author          String
+  isbn            String   @unique
+  description     String?
+  publishedYear   Int?
+  totalCopies     Int      @default(1)
+  availableCopies Int      @default(1)
+  coverUrl        String?
+  genreId         Int
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // A Book must reference a Genre via foreign key.
+  // onDelete: Restrict prevents deleting a Genre that still has Books.
+  genre          Genre           @relation(fields: [genreId], references: [id], onDelete: Restrict)
+  reviews        Review[]
+  borrowRequests BorrowRequest[]
+
+  @@index([genreId])
+  @@index([title])
+  @@index([author])
+  @@index([availableCopies])
+}
+
+// ─────────────── STRETCH DELIVERABLE (Review) ───────────────
+
+model Review {
+  id        Int      @id @default(autoincrement())
+  rating    Int      // expected 1–5, enforced in DTO (Week 2)
+  comment   String?
+  bookId    Int
+  userId    Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  book Book @relation(fields: [bookId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // One review per user per book
+  @@unique([bookId, userId])
+  @@index([bookId])
+  @@index([userId])
+}
+
+// ─────────────── FORWARD-DESIGNED (Weeks 5–6) ───────────────
+// Designed now to avoid schema churn in the final week.
+// Not used by Week-1 endpoints — safe to keep.
+
+model BorrowRequest {
+  id          Int          @id @default(autoincrement())
+  userId      Int
+  bookId      Int
+  status      BorrowStatus @default(PENDING)
+  requestedAt DateTime     @default(now())
+  approvedAt  DateTime?
+  dueAt       DateTime?
+  returnedAt  DateTime?
+  notes       String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  book Book @relation(fields: [bookId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([bookId])
+  @@index([status])
+}
+
+model StudySpace {
+  id          Int      @id @default(autoincrement())
+  name        String
+  capacity    Int
+  location    String
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  bookings Booking[]
+}
+
+model Booking {
+  id        Int           @id @default(autoincrement())
+  userId    Int
+  spaceId   Int
+  startTime DateTime
+  endTime   DateTime
+  status    BookingStatus @default(PENDING)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  user  User       @relation(fields: [userId], references: [id], onDelete: Restrict)
+  space StudySpace @relation(fields: [spaceId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([spaceId])
+  @@index([startTime, endTime])
+  @@index([status])
+}
