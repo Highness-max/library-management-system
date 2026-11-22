@@ -27,23 +27,25 @@ async function main(): Promise<void> {
   }
   console.log(`   ✔ ${genres.length} genres ready`);
 
-  // ── 2) Users ──
+
+    // ── 2) Users ──
   const users = [
-    { email: 'amina@plp.ac.ke',  name: 'Amina Wanjiku',  role: Role.LIBRARIAN },
-    { email: 'brian@plp.ac.ke',  name: 'Brian Otieno',   role: Role.PATRON },
-    { email: 'chidi@plp.ac.ke',  name: 'Chidi Okonkwo',  role: Role.PATRON },
+    { email: 'amina@plp.ac.ke', name: 'Amina Wanjiku', password: 'password123', role: Role.LIBRARIAN },
+    { email: 'brian@plp.ac.ke', name: 'Brian Otieno', password: 'password123', role: Role.PATRON },
+    { email: 'chidi@plp.ac.ke', name: 'Chidi Okonkwo', password: 'password123', role: Role.PATRON },
   ];
 
   const userIdByEmail = new Map<string, number>();
   for (const u of users) {
     const row = await prisma.user.upsert({
       where: { email: u.email },
-      update: { name: u.name, role: u.role },
+      update: { name: u.name, role: u.role, password: u.password },
       create: u,
     });
     userIdByEmail.set(u.email, row.id);
   }
   console.log(`   ✔ ${users.length} users ready`);
+
 
   // ── 3) Books (22 across 7 genres — exceeds 15 / 4 minimums) ──
   type SeedBook = {
